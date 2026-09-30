@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>实时心率看板</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>实时心率看板</h1>
+          <p class="subtitle">来自本地采集端的实时数据</p>
+        </div>
+        <div class="connection-pill" id="connection-pill">
+          <span class="connection-dot"></span>
+          <span id="connection-text">正在连接</span>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <label class="token-field">
+          <span>服务端令牌（可选）</span>
+          <input id="token-input" type="password" placeholder="未设置则留空" autocomplete="off" />
+        </label>
+        <button id="connect-button" class="button dark">连接</button>
+        <label class="search-field">
+          <span class="sr-only">搜索名字</span>
+          <input id="search-input" type="search" placeholder="搜索名字…" />
+        </label>
+      </section>
+
+      <section class="summary" aria-label="摘要">
+        <div class="summary-card glass"><span>在线人数</span><strong id="online-count">0</strong></div>
+        <div class="summary-card glass"><span>当前最高</span><strong id="highest-rate">--</strong><small>BPM</small></div>
+        <div class="summary-card glass"><span>已接入设备</span><strong id="total-count">0</strong></div>
+      </section>
+
+      <section id="people-grid" class="people-grid" aria-live="polite"></section>
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">♡</div>
+        <h2>等待采集端上线</h2>
+        <p>启动本地采集端并开始接收，心率会自动出现在这里。</p>
+      </div>
+
+      <section id="history-panel" class="history-panel glass" hidden>
+        <div class="history-heading">
+          <div>
+            <h2><span id="history-name">--</span> 的心率趋势</h2>
+          </div>
+          <div class="range-tabs" role="group" aria-label="历史时间范围">
+            <button class="range-tab active" data-minutes="5">5 分钟</button>
+            <button class="range-tab" data-minutes="15">15 分钟</button>
+            <button class="range-tab" data-minutes="30">30 分钟</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="history-chart"></canvas>
+          <div id="history-empty" class="chart-empty">暂无这段时间的心率数据</div>
+        </div>
+        <p id="history-meta" class="history-meta"></p>
+      </section>
+
+      <footer>仅用于实时展示，不替代医疗设备或专业诊断。</footer>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

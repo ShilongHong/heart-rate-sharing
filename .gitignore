@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data (heart-rate history is personal health data)
+data/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Build output — exe is published on GitHub Releases, not committed
+dist/
+build/
+*.spec
+
+# Local tooling
+.claude/
+CLAUDE.md

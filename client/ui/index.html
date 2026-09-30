@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>心率实时共享</title>
+    <link rel="stylesheet" href="/web/styles.css" />
+    <link rel="stylesheet" href="/ui/desktop.css" />
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <aside class="side glass">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.7 4.5c2.1 0 3.6 1.1 4.4 2.5h1.8c.8-1.4 2.3-2.5 4.4-2.5 3.7 0 5.8 3.8 4.3 7.2C19.5 16.4 12 21 12 21z"/></svg>
+        </div>
+        <div>
+          <strong>心率实时共享</strong>
+          <span>本地采集端</span>
+        </div>
+      </div>
+
+      <section id="me-card" class="me-card glass sheen state-idle">
+        <div class="me-top">
+          <span class="me-title">我的心率</span>
+          <span id="state-chip" class="state-chip">未开始</span>
+        </div>
+        <div class="me-rate">
+          <div class="me-heart-wrap"><svg id="me-heart" class="me-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.7 4.5c2.1 0 3.6 1.1 4.4 2.5h1.8c.8-1.4 2.3-2.5 4.4-2.5 3.7 0 5.8 3.8 4.3 7.2C19.5 16.4 12 21 12 21z"/></svg></div>
+          <strong id="my-bpm">--</strong>
+          <span class="me-unit">BPM</span>
+        </div>
+        <canvas id="ecg" class="ecg" aria-hidden="true"></canvas>
+        <p id="status-text" class="me-status">扫描并选择心率设备，然后开始采集</p>
+        <button id="toggle-button" class="button primary block">开始采集</button>
+      </section>
+
+      <section id="settings" class="settings">
+        <h3>连接设置</h3>
+        <div id="segmented" class="segmented" role="group" aria-label="上传模式" data-active="backend">
+          <span class="segmented-thumb" aria-hidden="true"></span>
+          <button type="button" data-mode="backend" class="active">完整版</button>
+          <button type="button" data-mode="action">Action 转发</button>
+        </div>
+        <p id="mode-hint" class="hint">实时上传，支持历史趋势</p>
+
+        <label class="field" data-show="backend">
+          <span>服务端地址</span>
+          <input id="server-url" placeholder="例如 http://192.168.1.10:8000" autocomplete="off" />
+        </label>
+        <label class="field" data-show="action">
+          <span>GitHub 仓库</span>
+          <input id="github-repo" placeholder="owner/repo" autocomplete="off" />
+        </label>
+        <label class="field" data-show="action">
+          <span>GitHub 令牌</span>
+          <input id="github-token" type="password" placeholder="github_pat_…" autocomplete="off" />
+        </label>
+        <label class="field" data-show="action">
+          <span>看板地址（查看其他人，可选）</span>
+          <input id="dashboard-url" placeholder="中转服务器地址，例如 https://hr.example.com" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>显示名字</span>
+          <input id="name" placeholder="别人看到的名字" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>服务端令牌（可选）</span>
+          <input id="token" type="password" placeholder="未设置则留空" autocomplete="off" />
+        </label>
+        <div class="field">
+          <span>心率设备</span>
+          <div class="device-row">
+            <select id="device-select" aria-label="心率设备"></select>
+            <button id="scan-button" type="button" class="button ghost">扫描</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="side-foot">
+        <button id="log-button" type="button" class="link-button">打开日志文件夹</button>
+      </div>
+    </aside>
+
+    <main class="dash">
+      <header class="topbar">
+        <div>
+          <h1>所有人的心率</h1>
+          <p class="subtitle">连接到同一服务端的所有采集端，实时更新</p>
+        </div>
+        <div class="connection-pill" id="connection-pill">
+          <span class="connection-dot"></span>
+          <span id="connection-text">正在连接</span>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <label class="search-field">
+          <span class="sr-only">搜索名字</span>
+          <input id="search-input" type="search" placeholder="搜索名字…" />
+        </label>
+      </section>
+
+      <section class="summary" aria-label="摘要">
+        <div class="summary-card glass"><span>在线人数</span><strong id="online-count">0</strong></div>
+        <div class="summary-card glass"><span>当前最高</span><strong id="highest-rate">--</strong><small>BPM</small></div>
+        <div class="summary-card glass"><span>已接入设备</span><strong id="total-count">0</strong></div>
+      </section>
+
+      <section id="people-grid" class="people-grid" aria-live="polite"></section>
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">♡</div>
+        <h2>还没有人在线</h2>
+        <p>开始采集后，你和同一服务端上的其他人都会显示在这里。</p>
+      </div>
+
+      <section id="history-panel" class="history-panel glass" hidden>
+        <div class="history-heading">
+          <div>
+            <h2><span id="history-name">--</span> 的心率趋势</h2>
+          </div>
+          <div class="range-tabs" role="group" aria-label="历史时间范围">
+            <button class="range-tab active" data-minutes="5">5 分钟</button>
+            <button class="range-tab" data-minutes="15">15 分钟</button>
+            <button class="range-tab" data-minutes="30">30 分钟</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="history-chart"></canvas>
+          <div id="history-empty" class="chart-empty">暂无这段时间的心率数据</div>
+        </div>
+        <p id="history-meta" class="history-meta"></p>
+      </section>
+
+      <footer>仅用于实时展示，不替代医疗设备或专业诊断。</footer>
+    </main>
+
+    <script src="/ui/desktop.js"></script>
+    <script src="/web/app.js"></script>
+  </body>
+</html>

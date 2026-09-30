@@ -1,0 +1,19 @@
+name: Heart rate relay
+on:
+  repository_dispatch:
+    types: [heart_rate]
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Forward latest sample
+        env:
+          RELAY_TARGET_URL: ${{ secrets.RELAY_TARGET_URL }}
+          RELAY_TARGET_TOKEN: ${{ secrets.RELAY_TARGET_TOKEN }}
+        run: python3 scripts/relay_action.py

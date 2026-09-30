@@ -26,7 +26,8 @@ Windows 采集端通过蓝牙读取标准 BLE 心率设备，上传到你自己�
 - **网页看板**：服务端同时提供网页，观众或其他设备用浏览器打开即可，不需要安装任何东西。
 - **不挑设备品牌**：支持所有广播标准 BLE Heart Rate Service（`0x180D`）的设备，在采集端里扫描、从列表中选择即可。
 - **自动恢复**：网络或蓝牙断开后，采集端会自动重连；服务端 20 秒收不到某人的数据就把他标记为离线。
-- **免安装**：采集端打包成一个约 14 MB 的 exe，双击就能运行。
+- **免安装**：采集端和服务端都有 Windows 单文件 exe，双击就能运行，不需要装 Python。
+- **家里的电脑也能当服务器**：服务端内置 Cloudflare 隧道，改一个配置就能拿到外网地址；也可以搭配 SakuraFrp 等内网穿透工具。
 
 ## 工作原理
 
@@ -46,7 +47,22 @@ Windows 采集端通过蓝牙读取标准 BLE 心率设备，上传到你自己�
 
 ### 1. 部署服务端（由一个人负责）
 
-需要 Python 3.10 及以上。在一台大家都能访问到的电脑或服务器上运行：
+**Windows：** 在 [Releases](../../releases/latest) 下载 `HeartRateServer.exe`，放进一个单独的文件夹后双击运行。窗口里会显示本机和局域网地址，并自动打开看板。
+
+- 同一文件夹下会自动生成配置文件 `heart-rate-server.json`，修改后重新打开服务端即可生效：
+
+  | 配置项 | 默认值 | 作用 |
+  | --- | --- | --- |
+  | `port` | `8000` | 服务端端口 |
+  | `token` | 空 | 共享令牌；采集端和网页都要填写同一个 |
+  | `open_browser` | `true` | 启动时自动打开看板 |
+  | `cloudflare_tunnel` | `false` | 改成 `true` 即开启内置的 Cloudflare 隧道，自动获得一个外网地址（见下文） |
+
+- 心率历史保存在同一文件夹的 `data\heart_rate.db`。
+- 第一次运行时，Windows 防火墙可能询问是否允许访问网络。允许“专用网络”后，局域网里的其他人才能连接。
+- 关闭窗口即停止服务。
+
+**其他系统或从源码运行：** 需要 Python 3.10 及以上：
 
 ```powershell
 pip install -r requirements-server.txt
@@ -55,12 +71,20 @@ python -m uvicorn server.app:app --host 0.0.0.0 --port 8000
 
 然后浏览器打开 <http://127.0.0.1:8000/> 就能看到看板。局域网内的其他人用这台电脑的局域网 IP 访问，例如 `http://192.168.1.10:8000/`。
 
-如果服务端要放到公网上，建议设置一个共享令牌，并放在带 HTTPS 的反向代理之后（代理需要转发 `/ws/ingest` 和 `/ws/monitor` 的 WebSocket 升级请求）：
+**让外网的人也能连上：** 服务端电脑没有公网 IP 时，有两种办法：
 
-```powershell
-$env:HR_SERVER_TOKEN = "请替换成随机长令牌"   # 采集端和网页都要填写同一个令牌
-python -m uvicorn server.app:app --host 0.0.0.0 --port 8000
-```
+- **内置 Cloudflare 隧道（最省事）**：把 `heart-rate-server.json` 里的 `cloudflare_tunnel` 改成 `true`，重新打开 `HeartRateServer.exe`。几秒后窗口里会显示一个 `https://随机名称.trycloudflare.com` 外网地址和令牌（没设置令牌时会自动生成），把这两项发给外地的队友即可。不需要注册账号或购买域名，并且自带浏览器和采集端都信任的 HTTPS 加密。
+- **其他内网穿透工具**：SakuraFrp、frp、cpolar 等，把本机端口映射出去，所有人填穿透工具给出的地址。
+
+内置隧道使用前请了解：
+
+- **地址每次启动都会变**，重开服务端后要把新地址重新发给大家。需要固定地址的话，可以用自己的域名配置 Cloudflare 正式隧道，或改用其他穿透工具。
+- 它使用的是 Cloudflare 的免费 Quick Tunnel。Cloudflare 说明这种隧道**只用于测试和开发，不保证稳定性**，并限制最多 200 个并发请求；适合朋友之间使用，不适合正式对外服务。
+- 在国内访问 Cloudflare 的速度和稳定性因地区和运营商而异，建议先让外地的队友试一下能否打开。
+- 关闭服务端窗口时隧道会一起关闭；隧道的运行日志在 exe 旁边的 `cloudflared.log`。
+- 服务端 exe 内置了 Cloudflare 官方的 cloudflared（Apache 2.0 许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)），所以体积约 34 MB。
+
+具体做法、如何加密以及免费隧道的流量估算，见 [docs/tunnel.md](docs/tunnel.md)。服务端开放到公网前，务必设置令牌。
 
 ### 2. 每个人运行采集端
 
@@ -141,16 +165,17 @@ python -m uvicorn server.app:app --host 0.0.0.0 --port 8000
 - 服务端保存的心率历史不会自动清理，长期运行后需要手动删除或迁移数据库。
 - 网页看板还没有专门给直播用的透明叠加层或精简模式。
 - exe 没有代码签名，首次运行会被 Windows SmartScreen 提示。
+- 服务端每收到一次心率就向所有看板推送完整名单，人数和看板多时流量会明显增加；使用有流量上限的免费隧道时请参考 [流量估算](docs/tunnel.md#流量估算)。
 
 ## 开发
 
 ```text
 client/    Windows 采集端：core.py 负责蓝牙和上传，app.py 是 pywebview 窗口，ui/ 是界面
-server/    服务端（FastAPI + SQLite）
+server/    服务端（FastAPI + SQLite）；launcher.py 是 Windows 版 HeartRateServer.exe 的入口，tunnel.py 管理内置的 Cloudflare 隧道
 relay/     Action 转发用的轻量接收端（只在内存里保存）
 web/       网页看板；采集端右侧的看板也复用这里的 app.js 和 styles.css
 scripts/   build_exe.ps1 打包采集端；relay_action.py 由 GitHub 工作流调用
-docs/      Action 转发说明和截图
+docs/      内网穿透说明、Action 转发说明和截图
 ```
 
 从源码运行采集端：
@@ -160,7 +185,7 @@ pip install -r requirements.txt
 python client/app.py
 ```
 
-打包 exe（输出到 `dist\HeartRateCollector.exe`）：
+打包 exe（输出到 `dist\`，默认同时打包采集端和服务端；加 `-Target client` 或 `-Target server` 只打包其中一个）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build_exe.ps1
@@ -194,4 +219,4 @@ node --check client/ui/desktop.js
 
 ## 许可证
 
-[MIT](LICENSE)
+本项目使用 [MIT](LICENSE) 许可证。服务端 exe 内置的 cloudflared 属于 Cloudflare，使用 Apache 2.0 许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

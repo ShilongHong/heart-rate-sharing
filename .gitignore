@@ -9,6 +9,7 @@ data/
 *.db-shm
 *.db-wal
 *.log
+heart-rate-server.json
 
 # Build output — exe is published on GitHub Releases, not committed
 dist/
